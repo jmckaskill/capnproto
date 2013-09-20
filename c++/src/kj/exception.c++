@@ -29,7 +29,7 @@
 #include <exception>
 #include <stdio.h>
 
-#if !defined(__CYGWIN__) && !defined(__sun)
+#if !defined(__CYGWIN__) && !defined(__sun) && !defined(_WIN32)
 #define KJ_HAS_BACKTRACE 1
 #include <execinfo.h>
 #endif
