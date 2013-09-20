@@ -134,6 +134,12 @@ namespace kj {
              __FILE__, __LINE__, ::kj::Exception::Nature::OS_ERROR, \
              _kjSyscallResult.getErrorNumber(), #call, #__VA_ARGS__, ##__VA_ARGS__);; f.fatal())
 
+#define KJ_WINCALL(call, ...) \
+  if (auto _kjWinResult = ::kj::_::Debug::wincall([&](){return (call);})) {} else \
+    for (::kj::_::Debug::Fault f( \
+             __FILE__, __LINE__, ::kj::Exception::Nature::OS_ERROR, \
+             _kjWinResult.getErrorNumber(), #call, #__VA_ARGS__, ##__VA_ARGS__);; f.fatal())
+
 #define KJ_FAIL_SYSCALL(code, errorNumber, ...) \
   for (::kj::_::Debug::Fault f( \
            __FILE__, __LINE__, ::kj::Exception::Nature::OS_ERROR, \
@@ -229,6 +235,19 @@ public:
   template <typename Call>
   static SyscallResult syscall(Call&& call);
 
+  class WinResult {
+  public:
+    inline WinResult(int success): success(success) {}
+    inline operator void*() { return success == 1 ? this : nullptr; }
+    inline int getErrorNumber();
+
+  private:
+    int success;
+  };
+
+  template <typename Call>
+  static WinResult wincall(Call&& call);
+
   class Context: public ExceptionCallback {
   public:
     Context();
@@ -312,6 +331,15 @@ Debug::SyscallResult Debug::syscall(Call&& call) {
     }
   }
   return SyscallResult(0);
+}
+
+template <typename Call>
+Debug::WinResult Debug::wincall(Call&& call) {
+  return Debug::WinResult(call());
+}
+
+inline int Debug::WinResult::getErrorNumber() {
+  return Debug::getOsErrorNumber();
 }
 
 template <typename... Params>

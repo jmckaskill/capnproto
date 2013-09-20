@@ -27,6 +27,10 @@
 #include <string.h>
 #include <errno.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace kj {
 namespace _ {  // private
 
@@ -124,7 +128,20 @@ static String makeDescription(DescriptionStyle style, const char* code, int erro
     StringPtr colon = ": ";
 
     StringPtr sysErrorArray;
-#if __USE_GNU
+#ifdef _WIN32
+    char buffer[256];
+    if (style == SYSCALL) {
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        errorNumber,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        buffer,
+        sizeof(buffer)-1,
+        NULL);
+      buffer[sizeof(buffer)-1] = '\0';
+      sysErrorArray = buffer;
+    }
+#elif __USE_GNU
     char buffer[256];
     if (style == SYSCALL) {
       sysErrorArray = strerror_r(errorNumber, buffer, sizeof(buffer));
@@ -223,8 +240,12 @@ String Debug::makeContextDescriptionInternal(const char* macroArgs, ArrayPtr<Str
 }
 
 int Debug::getOsErrorNumber() {
+#ifdef _WIN32
+  return ::GetLastError();
+#else
   int result = errno;
   return result == EINTR ? -1 : result;
+#endif
 }
 
 Debug::Context::Context(): logged(false) {}
