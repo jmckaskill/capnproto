@@ -36,6 +36,10 @@
 #include <pthread.h>
 #endif
 
+#undef VOID
+#undef ERROR
+#undef CONST
+
 namespace kj {
 
 // =======================================================================================

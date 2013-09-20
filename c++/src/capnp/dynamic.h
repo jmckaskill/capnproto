@@ -39,6 +39,8 @@
 #include "layout.h"
 #include "message.h"
 
+#undef VOID
+
 namespace capnp {
 
 class MessageReader;

@@ -29,6 +29,10 @@
 #include <limits>
 #include <stdlib.h>
 
+#ifdef FAR
+#undef FAR
+#endif
+
 namespace capnp {
 namespace _ {  // private
 

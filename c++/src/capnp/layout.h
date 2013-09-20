@@ -36,6 +36,10 @@
 #include "blob.h"
 #include "endian.h"
 
+#ifdef VOID
+#undef VOID
+#endif
+
 namespace capnp {
 namespace _ {  // private
 
