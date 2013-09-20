@@ -26,9 +26,72 @@
 #include "debug.h"
 #include "vector.h"
 #include <stdint.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/mman.h>
+#endif
 
 namespace kj {
+
+#ifdef _WIN32
+
+class WinUnmap: public kj::ArrayDisposer {
+public:
+  WinUnmap(AutoCloseHandle&& hmap, AutoCloseHandle&& hfile): hmap(mv(hmap)), hfile(mv(hfile)) {}
+  KJ_DISALLOW_COPY(WinUnmap);
+  ~WinUnmap() noexcept(false) {}
+
+protected:
+  void disposeImpl(void* firstElement, size_t elementSize, size_t elementCount,
+                   size_t capacity, void (*destroyElement)(void*)) const override {
+    KJ_WINCALL(UnmapViewOfFile(firstElement));
+    delete const_cast<WinUnmap*>(this);
+  }
+
+private:
+  AutoCloseHandle hmap;
+  AutoCloseHandle hfile;
+};
+
+Array<const char> mmapForRead(StringPtr filename) {
+  AutoCloseHandle hfile(CreateFileA(filename.cStr(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+  KJ_WINCALL(hfile.get() != INVALID_HANDLE_VALUE);
+
+  DWORD highsz;
+  DWORD lowsz = GetFileSize(hfile, &highsz);
+  if (lowsz != INVALID_FILE_SIZE) {
+    if (lowsz == 0 && highsz == 0) {
+      return nullptr;
+    }
+
+    AutoCloseHandle hmap(CreateFileMapping(hfile, NULL, PAGE_READONLY, highsz, lowsz, NULL));
+    KJ_WINCALL(hmap.get() != INVALID_HANDLE_VALUE);
+
+    size_t sz = (size_t) ((uint64_t(highsz) << 32) | uint64_t(lowsz));
+    void* data = MapViewOfFile(hmap, FILE_MAP_READ, 0, 0, sz);
+    KJ_WINCALL(data != NULL);
+
+    return kj::Array<const char>(reinterpret_cast<const char*>(data), sz, *(new WinUnmap(mv(hmap), mv(hfile))));
+  } else {
+    // This could be a stream of some sort, like a pipe.  Fall back to read().
+    // TODO(cleanup):  This does a lot of copies.  Not sure I care.
+    kj::Vector<char> data(8192);
+
+    char buffer[4096];
+    for (;;) {
+      DWORD n;
+      KJ_WINCALL(ReadFile(hfile, buffer, sizeof(buffer), &n, NULL));
+      if (n == 0) break;
+      data.addAll(buffer, buffer + n);
+    }
+
+    return data.releaseAsArray();
+  }
+}
+
+#else // _WIN32
 
 class MmapDisposer: public kj::ArrayDisposer {
 protected:
@@ -79,5 +142,7 @@ Array<const char> mmapForRead(StringPtr filename) {
     return data.releaseAsArray();
   }
 }
+
+#endif // _WIN32
 
 } // namespace kj
