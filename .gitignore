@@ -35,3 +35,29 @@
 
 # cabal-install artifacts
 /compiler/dist/
+
+# autotools build artifacts
+.dirstamp
+.deps
+*.o
+.libs
+*.lo
+/c++/Makefile
+/c++/Makefile.in
+/c++/aclocal.m4
+/c++/autom4te.cache/
+/c++/build-aux/
+/c++/config.h
+/c++/config.h.in
+/c++/configure
+/c++/m4
+/c++/stamp-h1
+/c++/libtool
+/c++/*.la
+/c++/*.exe
+/c++/config.log
+/c++/config.status
+
+# Vim artifacts
+*~
+.*.swp
