@@ -173,6 +173,7 @@ libkj_la_SOURCES=                                              \
   src/kj/thread.c++                                            \
   src/kj/async.c++                                             \
   src/kj/main.c++                                              \
+  src/kj/mmap.c++                                              \
   src/kj/parse/char.c++
 
 # -lpthread is here to work around https://bugzilla.redhat.com/show_bug.cgi?id=661333

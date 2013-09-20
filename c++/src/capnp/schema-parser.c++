@@ -33,8 +33,8 @@
 #include <kj/vector.h>
 #include <kj/debug.h>
 #include <kj/io.h>
+#include <kj/mmap.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -215,16 +215,6 @@ ParsedSchema ParsedSchema::getNested(kj::StringPtr nestedName) {
 
 namespace {
 
-class MmapDisposer: public kj::ArrayDisposer {
-protected:
-  void disposeImpl(void* firstElement, size_t elementSize, size_t elementCount,
-                   size_t capacity, void (*destroyElement)(void*)) const {
-    munmap(firstElement, elementSize * elementCount);
-  }
-};
-
-constexpr MmapDisposer mmapDisposer = MmapDisposer();
-
 static char* canonicalizePath(char* path) {
   // Taken from some old C code of mine.
 
@@ -342,43 +332,7 @@ bool SchemaFile::DiskFileReader::exists(kj::StringPtr path) const {
 }
 
 kj::Array<const char> SchemaFile::DiskFileReader::read(kj::StringPtr path) const {
-  int fd;
-  // We already established that the file exists, so this should not fail.
-  KJ_SYSCALL(fd = open(path.cStr(), O_RDONLY), path);
-  kj::AutoCloseFd closer(fd);
-
-  struct stat stats;
-  KJ_SYSCALL(fstat(fd, &stats));
-
-  if (S_ISREG(stats.st_mode)) {
-    if (stats.st_size == 0) {
-      // mmap()ing zero bytes will fail.
-      return nullptr;
-    }
-
-    // Regular file.  Just mmap() it.
-    const void* mapping = mmap(NULL, stats.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    if (mapping == MAP_FAILED) {
-      KJ_FAIL_SYSCALL("mmap", errno, path);
-    }
-
-    return kj::Array<const char>(
-        reinterpret_cast<const char*>(mapping), stats.st_size, mmapDisposer);
-  } else {
-    // This could be a stream of some sort, like a pipe.  Fall back to read().
-    // TODO(cleanup):  This does a lot of copies.  Not sure I care.
-    kj::Vector<char> data(8192);
-
-    char buffer[4096];
-    for (;;) {
-      ssize_t n;
-      KJ_SYSCALL(n = ::read(fd, buffer, sizeof(buffer)));
-      if (n == 0) break;
-      data.addAll(buffer, buffer + n);
-    }
-
-    return data.releaseAsArray();
-  }
+  return mmapForRead(path);
 }
 
 // -------------------------------------------------------------------
@@ -397,7 +351,7 @@ public:
   }
 
   kj::Array<const char> readContent() const override {
-    return fileReader.read(diskPath);
+    return mmapForRead(diskPath);
   }
 
   kj::Maybe<kj::Own<SchemaFile>> import(kj::StringPtr path) const override {
