@@ -57,6 +57,9 @@
 /c++/*.exe
 /c++/config.log
 /c++/config.status
+/c++/capnp
+/c++/capnpc-c++
+/c++/capnpc-capnp
 
 # Vim artifacts
 *~

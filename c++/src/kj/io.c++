@@ -33,6 +33,7 @@
 #include <io.h>
 #else
 #include <sys/uio.h>
+#include <sys/socket.h>
 #endif
 
 namespace kj {
