@@ -24,9 +24,16 @@
 #include "io.h"
 #include "debug.h"
 #include <unistd.h>
-#include <sys/uio.h>
 #include <algorithm>
 #include <errno.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <fcntl.h>
+#include <io.h>
+#else
+#include <sys/uio.h>
+#endif
 
 namespace kj {
 
@@ -287,6 +294,9 @@ void FdOutputStream::write(const void* buffer, size_t size) {
 }
 
 void FdOutputStream::write(ArrayPtr<const ArrayPtr<const byte>> pieces) {
+#ifdef _WIN32
+  OutputStream::write(pieces);
+#else
   KJ_STACK_ARRAY(struct iovec, iov, pieces.size(), 16, 128);
 
   for (uint i = 0; i < pieces.size(); i++) {
@@ -317,12 +327,17 @@ void FdOutputStream::write(ArrayPtr<const ArrayPtr<const byte>> pieces) {
       current->iov_len -= n;
     }
   }
+#endif
 }
 
 FileInputStream::~FileInputStream() noexcept(false) {}
 
 void FileInputStream::setBinary() {
+#ifdef _WIN32
+  _setmode(_fileno(file), _O_BINARY);
+#else
   freopen(NULL, "rb", file);
+#endif
 }
 
 size_t FileInputStream::tryRead(void* buffer, size_t minBytes, size_t maxBytes) {
@@ -344,7 +359,11 @@ size_t FileInputStream::tryRead(void* buffer, size_t minBytes, size_t maxBytes) 
 FileOutputStream::~FileOutputStream() noexcept(false) {}
 
 void FileOutputStream::setBinary() {
+#ifdef _WIN32
+  _setmode(_fileno(file), _O_BINARY);
+#else
   freopen(NULL, "rb", file);
+#endif
 }
 
 void FileOutputStream::write(const void* buffer, size_t size) {
