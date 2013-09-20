@@ -536,7 +536,8 @@ private:
 
 public:
   kj::MainBuilder::Validity decode() {
-    kj::FdInputStream rawInput(STDIN_FILENO);
+    kj::FileInputStream rawInput(stdin);
+    rawInput.setBinary();
     kj::BufferedInputStreamWrapper input(rawInput);
 
     if (!quiet) {
@@ -627,7 +628,7 @@ private:
       exception = kj::mv(catcher.exception);
     }
 
-    kj::FdOutputStream(STDOUT_FILENO).write(text.begin(), text.size());
+    kj::FileOutputStream(stdout).write(text.begin(), text.size());
 
     KJ_IF_MAYBE(e, exception) {
       context.error(kj::str(
@@ -975,7 +976,8 @@ public:
     kj::Vector<char> allText;
 
     {
-      kj::FdInputStream rawInput(STDIN_FILENO);
+      kj::FileInputStream rawInput(stdin);
+      rawInput.setBinary();
       kj::BufferedInputStreamWrapper input(rawInput);
 
       for (;;) {
@@ -1005,8 +1007,7 @@ public:
     type.get().initStruct().setTypeId(rootType.getProto().getId());
 
     // Set up output stream.
-    kj::FdOutputStream rawOutput(STDOUT_FILENO);
-    kj::BufferedOutputStreamWrapper output(rawOutput);
+    kj::FileOutputStream output(stdout);
 
     while (parserInput.getPosition() != tokens.end()) {
       KJ_IF_MAYBE(expression, parser.getParsers().parenthesizedValueExpression(parserInput)) {
@@ -1040,7 +1041,7 @@ public:
       }
     }
 
-    output.flush();
+    fflush(stdout);
     context.exit();
     KJ_CLANG_KNOWS_THIS_IS_UNREACHABLE_BUT_GCC_DOESNT;
   }
@@ -1171,10 +1172,9 @@ public:
         return "not a struct; binary output is only available on structs";
       }
 
-      kj::FdOutputStream rawOutput(STDOUT_FILENO);
-      kj::BufferedOutputStreamWrapper output(rawOutput);
+      kj::FileOutputStream output(stdout);
       writeFlat(value.as<DynamicStruct>(), output);
-      output.flush();
+      fflush(stdout);
       context.exit();
     } else {
       if (pretty && value.getType() == DynamicValue::STRUCT) {
@@ -1190,7 +1190,7 @@ public:
   }
 
 private:
-  void writeFlat(DynamicStruct::Reader value, kj::BufferedOutputStream& output) {
+  void writeFlat(DynamicStruct::Reader value, kj::OutputStream& output) {
     // Always copy the message to a flat array so that the output is predictable (one segment,
     // in canonical order).
     size_t size = value.totalSizeInWords() + 1;

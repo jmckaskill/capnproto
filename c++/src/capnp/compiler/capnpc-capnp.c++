@@ -528,15 +528,16 @@ private:
   kj::MainBuilder::Validity run() {
     ReaderOptions options;
     options.traversalLimitInWords = 1 << 30;  // Don't limit.
-    StreamFdMessageReader reader(STDIN_FILENO, options);
+    kj::FileInputStream in(stdin);
+    in.setBinary();
+    InputStreamMessageReader reader(in, options);
     auto request = reader.getRoot<schema::CodeGeneratorRequest>();
 
     for (auto node: request.getNodes()) {
       schemaLoader.load(node);
     }
 
-    kj::FdOutputStream rawOut(STDOUT_FILENO);
-    kj::BufferedOutputStreamWrapper out(rawOut);
+    kj::FileOutputStream out(stdout);
 
     for (auto requestedFile: request.getRequestedFiles()) {
       genFile(schemaLoader.get(requestedFile.getId())).visit(

@@ -255,34 +255,39 @@ TEST(Serialize, WriteMessageEvenSegmentCount) {
 }
 
 TEST(Serialize, FileDescriptors) {
-  char filename[] = "/tmp/capnproto-serialize-test-XXXXXX";
-  kj::AutoCloseFd tmpfile(mkstemp(filename));
-  ASSERT_GE(tmpfile.get(), 0);
-
-  // Unlink the file so that it will be deleted on close.
-  EXPECT_EQ(0, unlink(filename));
+  kj::AutoCloseFile tmp(tmpfile());
+  ASSERT_NE(tmp.get(), (FILE*)NULL);
 
   {
     TestMessageBuilder builder(7);
     initTestMessage(builder.initRoot<TestAllTypes>());
-    writeMessageToFd(tmpfile.get(), builder);
+    kj::FileOutputStream out(tmp.get());
+    out.setBinary();
+    writeMessage(out, builder);
   }
 
   {
     TestMessageBuilder builder(1);
     builder.initRoot<TestAllTypes>().setTextField("second message in file");
-    writeMessageToFd(tmpfile.get(), builder);
+    kj::FileOutputStream out(tmp.get());
+    out.setBinary();
+    writeMessage(out, builder);
   }
 
-  lseek(tmpfile, 0, SEEK_SET);
+  fflush(tmp);
+  rewind(tmp);
 
   {
-    StreamFdMessageReader reader(tmpfile.get());
+    kj::FileInputStream in(tmp.get());
+    in.setBinary();
+    InputStreamMessageReader reader(in);
     checkTestMessage(reader.getRoot<TestAllTypes>());
   }
 
   {
-    StreamFdMessageReader reader(tmpfile.get());
+    kj::FileInputStream in(tmp.get());
+    in.setBinary();
+    InputStreamMessageReader reader(in);
     EXPECT_EQ("second message in file", reader.getRoot<TestAllTypes>().getTextField());
   }
 }

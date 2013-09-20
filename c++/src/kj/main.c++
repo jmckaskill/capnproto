@@ -30,7 +30,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <limits.h>
-#include <sys/uio.h>
+#include <stdio.h>
 
 namespace kj {
 
@@ -59,7 +59,7 @@ void TopLevelProcessContext::exit() {
   _Exit(exitCode);
 }
 
-static void writeLineToFd(int fd, StringPtr message) {
+static void writeLineToFd(FILE *f, StringPtr message) {
   // Write the given message to the given file descriptor with a trailing newline iff the message
   // is non-empty and doesn't already have a trailing newline.  We use writev() to do this in a
   // single system call without any copying.
@@ -68,58 +68,18 @@ static void writeLineToFd(int fd, StringPtr message) {
     return;
   }
 
-  // Unfortunately the writev interface requires non-const pointers even though it won't modify
-  // the data.
-  struct iovec vec[2];
-  vec[0].iov_base = const_cast<char*>(message.begin());
-  vec[0].iov_len = message.size();
-  vec[1].iov_base = const_cast<char*>("\n");
-  vec[1].iov_len = 1;
-
-  struct iovec* pos = vec;
-
-  // Only use the second item in the vec if the message doesn't already end with \n.
-  uint count = message.endsWith("\n") ? 1 : 2;
-
-  for (;;) {
-    ssize_t n = writev(fd, pos, count);
-    if (n < 0) {
-      if (errno == EINTR) {
-        continue;
-      } else {
-        // This function is meant for writing to stdout and stderr.  If writes fail on those FDs
-        // there's not a whole lot we can reasonably do, so just ignore it.
-        return;
-      }
-    }
-
-    // Update chunks to discard what was successfully written.
-    for (;;) {
-      if (count == 0) {
-        // Done writing.
-        return;
-      } else if (pos->iov_len <= implicitCast<size_t>(n)) {
-        // Wrote this entire chunk.
-        n -= pos->iov_len;
-        ++pos;
-        --count;
-      } else {
-        // Wrote only part of this chunk.  Adjust the pointer and then retry.
-        pos->iov_base = reinterpret_cast<byte*>(pos->iov_base) + n;
-        pos->iov_len -= n;
-        break;
-      }
-    }
-  }
+  fwrite(message.begin(), message.size(), 1, f);
+  fwrite("\n", 1, 1, f);
+  fflush(f);
 }
 
 void TopLevelProcessContext::warning(StringPtr message) {
-  writeLineToFd(STDERR_FILENO, message);
+  writeLineToFd(stderr, message);
 }
 
 void TopLevelProcessContext::error(StringPtr message) {
   hadErrors = true;
-  writeLineToFd(STDERR_FILENO, message);
+  writeLineToFd(stderr, message);
 }
 
 void TopLevelProcessContext::exitError(StringPtr message) {
@@ -128,7 +88,7 @@ void TopLevelProcessContext::exitError(StringPtr message) {
 }
 
 void TopLevelProcessContext::exitInfo(StringPtr message) {
-  writeLineToFd(STDOUT_FILENO, message);
+  writeLineToFd(stdout, message);
   exit();
 }
 

@@ -1631,9 +1631,8 @@ private:
       makeDirectory(kj::str(filename.slice(0, *slashpos)));
     }
 
-    int fd;
-    KJ_SYSCALL(fd = open(filename.cStr(), O_CREAT | O_WRONLY | O_TRUNC, 0666), filename);
-    kj::FdOutputStream out((kj::AutoCloseFd(fd)));
+    FILE* f = fopen(filename.cStr(), "wb");
+    kj::FileOutputStream out((kj::AutoCloseFile(f)));
 
     text.visit(
         [&](kj::ArrayPtr<const char> text) {
@@ -1644,15 +1643,16 @@ private:
   kj::MainBuilder::Validity run() {
     ReaderOptions options;
     options.traversalLimitInWords = 1 << 30;  // Don't limit.
-    StreamFdMessageReader reader(STDIN_FILENO, options);
+    kj::FileInputStream in(stdin);
+    in.setBinary();
+    InputStreamMessageReader reader(in, options);
     auto request = reader.getRoot<schema::CodeGeneratorRequest>();
 
     for (auto node: request.getNodes()) {
       schemaLoader.load(node);
     }
 
-    kj::FdOutputStream rawOut(STDOUT_FILENO);
-    kj::BufferedOutputStreamWrapper out(rawOut);
+    kj::FileOutputStream out(stdout);
 
     for (auto requestedFile: request.getRequestedFiles()) {
       auto schema = schemaLoader.get(requestedFile.getId());

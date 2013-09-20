@@ -245,6 +245,14 @@ AutoCloseFd::~AutoCloseFd() noexcept(false) {
   }
 }
 
+AutoCloseFile::~AutoCloseFile() noexcept(false) {
+  if (file != NULL) {
+    unwindDetector.catchExceptionsIfUnwinding([&]() {
+      fclose(file);
+    });
+  }
+}
+
 FdInputStream::~FdInputStream() noexcept(false) {}
 
 size_t FdInputStream::tryRead(void* buffer, size_t minBytes, size_t maxBytes) {
@@ -308,6 +316,45 @@ void FdOutputStream::write(ArrayPtr<const ArrayPtr<const byte>> pieces) {
       current->iov_base = reinterpret_cast<byte*>(current->iov_base) + n;
       current->iov_len -= n;
     }
+  }
+}
+
+FileInputStream::~FileInputStream() noexcept(false) {}
+
+void FileInputStream::setBinary() {
+  freopen(NULL, "rb", file);
+}
+
+size_t FileInputStream::tryRead(void* buffer, size_t minBytes, size_t maxBytes) {
+  char* pos = reinterpret_cast<char*>(buffer);
+  char* min = pos + minBytes;
+  char* max = pos + maxBytes;
+
+  while (pos < min) {
+    size_t n = fread(pos, 1, max - pos, file);
+    if (n == 0) {
+      break;
+    }
+    pos += n;
+  }
+
+  return pos - reinterpret_cast<char*>(buffer);
+}
+
+FileOutputStream::~FileOutputStream() noexcept(false) {}
+
+void FileOutputStream::setBinary() {
+  freopen(NULL, "rb", file);
+}
+
+void FileOutputStream::write(const void* buffer, size_t size) {
+  const char* pos = reinterpret_cast<const char*>(buffer);
+
+  while (size > 0) {
+    size_t n = fwrite(pos, 1, size, file);
+    KJ_ASSERT(n > 0, "write() returned zero.");
+    pos += n;
+    size -= n;
   }
 }
 

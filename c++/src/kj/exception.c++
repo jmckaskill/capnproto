@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <exception>
+#include <stdio.h>
 
 #if !defined(__CYGWIN__) && !defined(__sun)
 #define KJ_HAS_BACKTRACE 1
@@ -314,7 +315,7 @@ public:
     StringPtr textPtr = text;
 
     while (text != nullptr) {
-      ssize_t n = write(STDERR_FILENO, textPtr.begin(), textPtr.size());
+      ssize_t n = fwrite(textPtr.begin(), textPtr.size(), 1, stderr);
       if (n <= 0) {
         // stderr is broken.  Give up.
         return;

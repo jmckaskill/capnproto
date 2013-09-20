@@ -25,6 +25,7 @@
 #define KJ_IO_H_
 
 #include <stddef.h>
+#include <stdio.h>
 #include "common.h"
 #include "array.h"
 #include "exception.h"
@@ -251,6 +252,22 @@ private:
   UnwindDetector unwindDetector;
 };
 
+class AutoCloseFile {
+public:
+  inline AutoCloseFile(): file(NULL) {}
+  inline explicit AutoCloseFile(FILE* file): file(file) {}
+  inline AutoCloseFile(AutoCloseFile&& other): file(other.file) { other.file = NULL; }
+  KJ_DISALLOW_COPY(AutoCloseFile);
+  ~AutoCloseFile() noexcept(false);
+
+  inline operator FILE*() { return file; }
+  inline FILE* get() { return file; }
+
+private:
+  FILE* file;
+  UnwindDetector unwindDetector;
+};
+
 class FdInputStream: public InputStream {
   // An InputStream wrapping a file descriptor.
 
@@ -282,6 +299,36 @@ public:
 private:
   int fd;
   AutoCloseFd autoclose;
+};
+
+class FileInputStream : public InputStream {
+public:
+  explicit FileInputStream(FILE* f) : file(f) {}
+  explicit FileInputStream(AutoCloseFile file): file(file), autoclose(mv(file)) {}
+  KJ_DISALLOW_COPY(FileInputStream);
+  ~FileInputStream() noexcept(false);
+
+  void setBinary();
+  size_t tryRead(void* buffer, size_t minBytes, size_t maxBytes) override;
+
+private:
+  FILE* file;
+  AutoCloseFile autoclose;
+};
+
+class FileOutputStream : public OutputStream {
+public:
+  explicit FileOutputStream(FILE* f) : file(f) {}
+  explicit FileOutputStream(AutoCloseFile file): file(file), autoclose(mv(file)) {}
+  KJ_DISALLOW_COPY(FileOutputStream);
+  ~FileOutputStream() noexcept(false);
+
+  void setBinary();
+  void write(const void* buffer, size_t size) override;
+
+private:
+  FILE* file;
+  AutoCloseFile autoclose;
 };
 
 }  // namespace kj
