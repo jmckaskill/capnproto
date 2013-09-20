@@ -44,6 +44,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <algorithm>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -378,8 +379,14 @@ public:
 
     auto schemas = compiler->getLoader().getAllLoaded();
     auto nodes = request.initNodes(schemas.size());
+    kj::Vector<std::pair<uint64_t, size_t> > sortedNodes(schemas.size());
     for (size_t i = 0; i < schemas.size(); i++) {
-      nodes.setWithCaveats(i, schemas[i].getProto());
+      sortedNodes.add(std::make_pair(schemas[i].getId(), i));
+    }
+    std::sort(sortedNodes.begin(), sortedNodes.end());
+    size_t i = 0;
+    for (auto kv: sortedNodes) {
+      nodes.setWithCaveats(i++, schemas[kv.second].getProto());
     }
 
     auto requestedFiles = request.initRequestedFiles(sourceFiles.size());

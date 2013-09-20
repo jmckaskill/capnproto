@@ -61,6 +61,9 @@ public:
   // Get the underlying Cap'n Proto representation of the schema node.  (Note that this accessor
   // has performance comparable to accessors of struct-typed fields on Reader classes.)
 
+  ::uint64_t getId() const;
+  // Get the ID for this schema node
+
   kj::ArrayPtr<const word> asUncheckedMessage() const;
   // Get the encoded schema node content as a single message segment.  It is safe to read as an
   // unchecked message.

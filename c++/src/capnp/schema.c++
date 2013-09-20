@@ -31,6 +31,10 @@ schema::Node::Reader Schema::getProto() const {
   return readMessageUnchecked<schema::Node>(raw->encodedNode);
 }
 
+::uint64_t Schema::getId() const {
+  return raw->id;
+}
+
 kj::ArrayPtr<const word> Schema::asUncheckedMessage() const {
   return kj::arrayPtr(raw->encodedNode, raw->encodedSize);
 }
