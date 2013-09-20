@@ -377,4 +377,27 @@ void FileOutputStream::write(const void* buffer, size_t size) {
   }
 }
 
+#ifdef _WIN32
+AutoCloseHandle::~AutoCloseHandle() noexcept(false) {
+  if (handle != NULL && handle != INVALID_HANDLE_VALUE) {
+    unwindDetector.catchExceptionsIfUnwinding([&]() {
+      CloseHandle(handle);
+    });
+  }
+}
+
+HandleOutputStream::~HandleOutputStream() noexcept(false) {}
+
+void HandleOutputStream::write(const void* buffer, size_t size) {
+  const char* pos = reinterpret_cast<const char*>(buffer);
+
+  while (size > 0) {
+    DWORD n;
+    KJ_WINCALL(WriteFile(h, pos, size, &n, NULL));
+    pos += n;
+    size -= n;
+  }
+}
+#endif
+
 }  // namespace kj

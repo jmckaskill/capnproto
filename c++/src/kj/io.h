@@ -268,6 +268,22 @@ private:
   UnwindDetector unwindDetector;
 };
 
+class AutoCloseHandle {
+public:
+  inline AutoCloseHandle(): handle(NULL) {}
+  inline explicit AutoCloseHandle(void *handle): handle(handle) {}
+  inline AutoCloseHandle(AutoCloseHandle&& other): handle(other.handle) { other.handle = NULL; }
+  KJ_DISALLOW_COPY(AutoCloseHandle);
+  ~AutoCloseHandle() noexcept(false);
+
+  inline operator void*() { return handle; }
+  inline void* get() { return handle; }
+
+private:
+  void* handle;
+  UnwindDetector unwindDetector;
+};
+
 class FdInputStream: public InputStream {
   // An InputStream wrapping a file descriptor.
 
@@ -329,6 +345,20 @@ public:
 private:
   FILE* file;
   AutoCloseFile autoclose;
+};
+
+class HandleOutputStream : public OutputStream {
+public:
+  explicit HandleOutputStream(void* h): h(h) {}
+  explicit HandleOutputStream(AutoCloseHandle h): h(h), autoclose(mv(h)) {}
+  KJ_DISALLOW_COPY(HandleOutputStream);
+  ~HandleOutputStream() noexcept(false);
+
+  void write(const void* buffer, size_t size) override;
+
+private:
+  void* h;
+  AutoCloseHandle autoclose;
 };
 
 }  // namespace kj

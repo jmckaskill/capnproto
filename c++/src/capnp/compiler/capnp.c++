@@ -38,12 +38,18 @@
 #include <kj/parse/char.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <capnp/serialize.h>
 #include <capnp/serialize-packed.h>
 #include <limits>
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/wait.h>
+#endif
 
 #if HAVE_CONFIG_H
 #include "config.h"
@@ -386,9 +392,6 @@ public:
     }
 
     for (auto& output: outputs) {
-      int pipeFds[2];
-      KJ_SYSCALL(pipe(pipeFds));
-
       kj::String exeName;
       bool shouldSearchPath = true;
       for (char c: output.name) {
@@ -398,10 +401,69 @@ public:
         }
       }
       if (shouldSearchPath) {
+#ifdef _WIN32
+        exeName = kj::str("capnpc-", output.name, ".exe");
+#else
         exeName = kj::str("capnpc-", output.name);
+#endif
       } else {
         exeName = kj::heapString(output.name);
       }
+
+#ifdef _WIN32
+      HANDLE pipeFds[2];
+      KJ_WINCALL(CreatePipe(&pipeFds[0], &pipeFds[1], NULL, 0));
+
+      HANDLE outdup, errdup, rdpipe;
+      HANDLE proc = GetCurrentProcess();
+
+      KJ_WINCALL(DuplicateHandle(proc, pipeFds[0], proc, &rdpipe, 0, TRUE, DUPLICATE_SAME_ACCESS));
+      KJ_WINCALL(DuplicateHandle(proc, GetStdHandle(STD_OUTPUT_HANDLE), proc, &outdup, 0, TRUE, DUPLICATE_SAME_ACCESS));
+      KJ_WINCALL(DuplicateHandle(proc, GetStdHandle(STD_ERROR_HANDLE), proc, &errdup, 0, TRUE, DUPLICATE_SAME_ACCESS));
+      KJ_WINCALL(CloseHandle(pipeFds[0]));
+
+      PROCESS_INFORMATION pi;
+      memset(&pi, 0, sizeof(pi));
+
+      STARTUPINFO si;
+      memset(&si, 0, sizeof(si));
+      si.cb = sizeof(si);
+      si.dwFlags = STARTF_USESTDHANDLES;
+      si.hStdInput = rdpipe;
+      si.hStdOutput = outdup;
+      si.hStdError = errdup;
+
+      const char* dir = (output.dir == nullptr ? NULL : output.dir.cStr());
+
+      if (!CreateProcessA(exeName.cStr(), NULL, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, dir, &si, &pi)) {
+        DWORD err = GetLastError();
+	if (err == ERROR_FILE_NOT_FOUND) {
+          context.exitError(kj::str(output.name, ": no such plugin (executable should be '", exeName, "')"));
+	} else {
+          KJ_FAIL_SYSCALL("CreateProcess", err);
+	}
+      }
+
+      kj::HandleOutputStream out(pipeFds[1]);
+      writeMessage(out, message);
+      KJ_WINCALL(CloseHandle(pipeFds[1]));
+
+      KJ_WINCALL(WAIT_OBJECT_0 == WaitForSingleObject(pi.hProcess, INFINITE));
+
+      DWORD status;
+      KJ_WINCALL(GetExitCodeProcess(pi.hProcess, &status));
+      if (status) {
+        context.error(kj::str(output.name, ": plugin failed: exit code ", status));
+      }
+
+      KJ_WINCALL(CloseHandle(rdpipe));
+      KJ_WINCALL(CloseHandle(pi.hProcess));
+      KJ_WINCALL(CloseHandle(pi.hThread));
+      KJ_WINCALL(CloseHandle(outdup));
+      KJ_WINCALL(CloseHandle(errdup));
+#else
+      int pipeFds[2];
+      KJ_SYSCALL(pipe(pipeFds));
 
       pid_t child;
       KJ_SYSCALL(child = fork());
@@ -453,6 +515,7 @@ public:
       } else if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
         context.error(kj::str(output.name, ": plugin failed: exit code ", WEXITSTATUS(status)));
       }
+#endif
     }
 
     return true;
