@@ -32,7 +32,14 @@
 #include <string.h>
 #include <exception>
 #include <sys/types.h>
+
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
+
+#if defined(_WIN32) && KJ_NO_EXCEPTIONS
+#error "Need exceptions to run this test on windows"
+#endif
 
 namespace kj {
 namespace _ {  // private
@@ -48,6 +55,7 @@ public:
 
   int outputPipe = -1;
 
+#ifndef _WIN32
   bool forkForDeathTest() {
     // This is called when exceptions are disabled.  We fork the process instead and then expect
     // the child to die.
@@ -101,6 +109,7 @@ public:
       return false;
     }
   }
+#endif
 
   void flush() {
     if (outputPipe != -1) {

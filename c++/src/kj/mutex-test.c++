@@ -31,7 +31,13 @@
 namespace kj {
 namespace {
 
-inline void delay() { usleep(10000); }
+inline void delay() {
+#ifdef _WIN32
+  ::Sleep(10);
+#else
+  usleep(10000);
+#endif
+}
 
 #if KJ_NO_EXCEPTIONS
 #undef EXPECT_ANY_THROW

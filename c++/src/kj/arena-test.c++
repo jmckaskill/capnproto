@@ -359,7 +359,11 @@ TEST(Arena, Threads) {
       Thread thread4(threadFunc);
 
       // Wait for threads to be ready.
+#ifdef _WIN32
+      ::Sleep(10);
+#else
       usleep(10000);
+#endif
 
       auto release = kj::mv(lock);
       // As we go out of scope, the lock will be released (since `release` is destroyed first),

@@ -1631,7 +1631,11 @@ TEST(Encoding, Threads) {
   kj::Thread thread3(threadFunc);
   kj::Thread thread4(threadFunc);
 
+#ifdef _WIN32
+  ::Sleep(10);
+#else
   usleep(10000);
+#endif
   auto releaseLock = kj::mv(outerLock);
 
   // On the way out, we'll release the lock, thus allowing the threads to start, then we'll join
