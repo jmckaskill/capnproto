@@ -42,6 +42,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
+
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -1617,7 +1618,11 @@ private:
       makeDirectory(kj::str(path.slice(0, *slashpos)));
     }
 
-    if (mkdir(path.cStr(), 0777) < 0) {
+    if (mkdir(path.cStr()
+#ifndef _WIN32
+            , 0777
+#endif
+            ) < 0) {
       int error = errno;
       if (error != EEXIST) {
         KJ_FAIL_SYSCALL("mkdir(path)", error, path);
