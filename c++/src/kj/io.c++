@@ -256,20 +256,20 @@ AutoCloseFile::~AutoCloseFile() noexcept(false) {
 FdInputStream::~FdInputStream() noexcept(false) {}
 
 size_t FdInputStream::tryRead(void* buffer, size_t minBytes, size_t maxBytes) {
-  byte* pos = reinterpret_cast<byte*>(buffer);
-  byte* min = pos + minBytes;
-  byte* max = pos + maxBytes;
+  char* pos = reinterpret_cast<char*>(buffer);
+  char* min = pos + minBytes;
+  char* max = pos + maxBytes;
 
   while (pos < min) {
     ssize_t n;
-    KJ_SYSCALL(n = ::read(fd, pos, max - pos), fd);
+    KJ_SYSCALL(n = ::recv(fd, pos, max - pos, 0), fd);
     if (n == 0) {
       break;
     }
     pos += n;
   }
 
-  return pos - reinterpret_cast<byte*>(buffer);
+  return pos - reinterpret_cast<char*>(buffer);
 }
 
 FdOutputStream::~FdOutputStream() noexcept(false) {}
@@ -279,7 +279,7 @@ void FdOutputStream::write(const void* buffer, size_t size) {
 
   while (size > 0) {
     ssize_t n;
-    KJ_SYSCALL(n = ::write(fd, pos, size), fd);
+    KJ_SYSCALL(n = ::send(fd, pos, size, 0), fd);
     KJ_ASSERT(n > 0, "write() returned zero.");
     pos += n;
     size -= n;
