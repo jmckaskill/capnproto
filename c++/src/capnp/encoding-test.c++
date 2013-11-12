@@ -30,6 +30,10 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#undef INTERFACE
+#undef CONST
+#undef VOID
+
 #endif
 
 #include "test-util.h"
