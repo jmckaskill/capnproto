@@ -47,6 +47,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#undef CONST
 #else
 #include <sys/wait.h>
 #endif
