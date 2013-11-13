@@ -1091,6 +1091,7 @@ public:
 
     // Set up output stream.
     kj::FileOutputStream output(stdout);
+    output.setBinary();
 
     while (parserInput.getPosition() != tokens.end()) {
       KJ_IF_MAYBE(expression, parser.getParsers().parenthesizedValueExpression(parserInput)) {
