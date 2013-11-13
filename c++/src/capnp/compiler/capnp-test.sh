@@ -33,6 +33,8 @@ fail() {
 
 if test -f ./capnp; then
   CAPNP=${CAPNP:-./capnp}
+elif test -f ./capnp.exe; then
+  CAPNP=${CAPNP:-./capnp.exe}
 else
   CAPNP=${CAPNP:-capnp}
 fi
@@ -45,13 +47,13 @@ $CAPNP encode --flat $SCHEMA TestAllTypes < $TESTDATA/short.txt | cmp $TESTDATA/
 $CAPNP encode --packed $SCHEMA TestAllTypes < $TESTDATA/short.txt | cmp $TESTDATA/packed - || fail encode packed
 $CAPNP encode $SCHEMA TestAllTypes < $TESTDATA/pretty.txt | cmp $TESTDATA/binary - || fail parse pretty
 
-$CAPNP decode $SCHEMA TestAllTypes < $TESTDATA/binary | cmp $TESTDATA/pretty.txt - || fail decode
-$CAPNP decode --flat $SCHEMA TestAllTypes < $TESTDATA/flat | cmp $TESTDATA/pretty.txt - || fail decode flat
-$CAPNP decode --packed $SCHEMA TestAllTypes < $TESTDATA/packed | cmp $TESTDATA/pretty.txt - || fail decode packed
-$CAPNP decode --short $SCHEMA TestAllTypes < $TESTDATA/binary | cmp $TESTDATA/short.txt - || fail decode short
+$CAPNP decode $SCHEMA TestAllTypes < $TESTDATA/binary | tr -d '\r' | cmp $TESTDATA/pretty.txt - || fail decode
+$CAPNP decode --flat $SCHEMA TestAllTypes < $TESTDATA/flat | tr -d '\r' | cmp $TESTDATA/pretty.txt - || fail decode flat
+$CAPNP decode --packed $SCHEMA TestAllTypes < $TESTDATA/packed | tr -d '\r' | cmp $TESTDATA/pretty.txt - || fail decode packed
+$CAPNP decode --short $SCHEMA TestAllTypes < $TESTDATA/binary | tr -d '\r' | cmp $TESTDATA/short.txt - || fail decode short
 
-$CAPNP decode $SCHEMA TestAllTypes < $TESTDATA/segmented | cmp $TESTDATA/pretty.txt - || fail decode segmented
-$CAPNP decode --packed $SCHEMA TestAllTypes < $TESTDATA/segmented-packed | cmp $TESTDATA/pretty.txt - || fail decode segmented-packed
+$CAPNP decode $SCHEMA TestAllTypes < $TESTDATA/segmented | tr -d '\r' | cmp $TESTDATA/pretty.txt - || fail decode segmented
+$CAPNP decode --packed $SCHEMA TestAllTypes < $TESTDATA/segmented-packed | tr -d '\r' | cmp $TESTDATA/pretty.txt - || fail decode segmented-packed
 
 test_eval() {
   test "x`$CAPNP eval $SCHEMA $1`" = "x$2" || fail eval "$1 == $2"
@@ -66,4 +68,4 @@ test_eval TestConstants.enumConst corge
 test_eval 'TestListDefaults.lists.int32ListList[2][0]' 12341234
 
 $CAPNP compile -ofoo $TESTDATA/errors.capnp.nobuild 2>&1 | sed -e "s,^.*/errors[.]capnp[.]nobuild,file,g" |
-    cmp $TESTDATA/errors.txt - || fail error output
+    tr -d '\r' | cmp $TESTDATA/errors.txt - || fail error output
