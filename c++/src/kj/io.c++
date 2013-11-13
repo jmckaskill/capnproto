@@ -335,9 +335,9 @@ FileInputStream::~FileInputStream() noexcept(false) {}
 
 void FileInputStream::setBinary() {
 #ifdef _WIN32
-  _setmode(_fileno(file), _O_BINARY);
+  KJ_SYSCALL(_setmode(_fileno(file), _O_BINARY));
 #else
-  freopen(NULL, "rb", file);
+  KJ_SYSCALL(freopen(NULL, "rb", file) != NULL);
 #endif
 }
 
@@ -361,9 +361,9 @@ FileOutputStream::~FileOutputStream() noexcept(false) {}
 
 void FileOutputStream::setBinary() {
 #ifdef _WIN32
-  _setmode(_fileno(file), _O_BINARY);
+  KJ_SYSCALL(_setmode(_fileno(file), _O_BINARY));
 #else
-  freopen(NULL, "rb", file);
+  KJ_SYSCALL(freopen(NULL, "wb", file) != NULL);
 #endif
 }
 
