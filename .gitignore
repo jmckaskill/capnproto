@@ -60,6 +60,9 @@
 /c++/capnp
 /c++/capnpc-c++
 /c++/capnpc-capnp
+/c++/test_capnpc_middleman
+*.capnp.h
+*.capnp.c++
 
 # Vim artifacts
 *~
