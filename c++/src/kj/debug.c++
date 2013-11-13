@@ -127,7 +127,7 @@ static String makeDescription(DescriptionStyle style, const char* code, int erro
     StringPtr delim = "; ";
     StringPtr colon = ": ";
 
-    StringPtr sysErrorArray;
+    ArrayPtr<const char> sysErrorArray;
 #ifdef _WIN32
     char buffer[256];
     if (style == SYSCALL) {
@@ -139,18 +139,22 @@ static String makeDescription(DescriptionStyle style, const char* code, int erro
         sizeof(buffer)-1,
         NULL);
       buffer[sizeof(buffer)-1] = '\0';
-      sysErrorArray = buffer;
+      StringPtr str = buffer;
+      if (str.endsWith("\r\n"))
+        sysErrorArray = str.slice(0, str.size()-2);
+      else
+        sysErrorArray = str;
     }
 #elif __USE_GNU
     char buffer[256];
     if (style == SYSCALL) {
-      sysErrorArray = strerror_r(errorNumber, buffer, sizeof(buffer));
+      sysErrorArray = StringPtr(strerror_r(errorNumber, buffer, sizeof(buffer)));
     }
 #else
     char buffer[256];
     if (style == SYSCALL) {
       strerror_r(errorNumber, buffer, sizeof(buffer));
-      sysErrorArray = buffer;
+      sysErrorArray = StringPtr(buffer);
     }
 #endif
 

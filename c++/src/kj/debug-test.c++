@@ -33,7 +33,10 @@
 #include <exception>
 #include <sys/types.h>
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#undef ERROR
+#else
 #include <sys/wait.h>
 #endif
 
@@ -331,17 +334,30 @@ TEST(Debug, Syscall) {
   int fd;
   KJ_SYSCALL(fd = dup(STDIN_FILENO));
   KJ_SYSCALL(close(fd));
+#ifdef _WIN32
+  EXPECT_FATAL(KJ_WINCALL(DeleteFileA("aoe:foo"), i, "bar", str)); line = __LINE__;
+  EXPECT_EQ("fatal exception: " + fileLine(__FILE__, line) + ": error from OS: DeleteFileA(\"aoe:foo\"): "
+            + "The system cannot find the file specified." + "; i = 123; bar; str = foo\n", mockCallback.text);
+#else
   EXPECT_FATAL(KJ_SYSCALL(close(fd), i, "bar", str)); line = __LINE__;
   EXPECT_EQ("fatal exception: " + fileLine(__FILE__, line) + ": error from OS: close(fd): "
             + strerror(EBADF) + "; i = 123; bar; str = foo\n", mockCallback.text);
+#endif
   mockCallback.text.clear();
 
   int result = 0;
   bool recovered = false;
+#ifdef _WIN32
+  KJ_WINCALL(result = DeleteFileA("aoe:foo"), i, "bar", str) { recovered = true; break; } line = __LINE__;
+  EXPECT_EQ("recoverable exception: " + fileLine(__FILE__, line) + ": error from OS: DeleteFileA(\"aoe:foo\"): "
+            + "The system cannot find the file specified." + "; i = 123; bar; str = foo\n", mockCallback.text);
+  EXPECT_EQ(result, 0);
+#else
   KJ_SYSCALL(result = close(fd), i, "bar", str) { recovered = true; break; } line = __LINE__;
   EXPECT_EQ("recoverable exception: " + fileLine(__FILE__, line) + ": error from OS: close(fd): "
             + strerror(EBADF) + "; i = 123; bar; str = foo\n", mockCallback.text);
   EXPECT_LT(result, 0);
+#endif
   EXPECT_TRUE(recovered);
 }
 
