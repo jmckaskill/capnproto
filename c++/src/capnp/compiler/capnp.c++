@@ -403,7 +403,7 @@ public:
       kj::String exeName;
       bool shouldSearchPath = true;
       for (char c: output.name) {
-        if (c == '/') {
+        if (c == '/' || c == '\\') {
           shouldSearchPath = false;
           break;
         }
