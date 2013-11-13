@@ -32,7 +32,8 @@ namespace {
 TEST(String, Str) {
   EXPECT_EQ("foobar", str("foo", "bar"));
   EXPECT_EQ("1 2 3 4", str(1, " ", 2u, " ", 3l, " ", 4ll));
-  EXPECT_EQ("1.5 foo 1e15 bar -3", str(1.5f, " foo ", 1e15, " bar ", -3));
+  EXPECT_EQ("1.5 foo 1.5e200 1.5e-200 1.5e15 1.2e-15 1.1e-9 bar -3",
+      str(1.5f, " foo ", 1.5e200, " ", 1.5e-200, " ", 1.5e15, " ", 1.2e-15, " ", 1.1e-9, " bar ", -3));
   EXPECT_EQ("foo", str('f', 'o', 'o'));
 }
 

@@ -21,6 +21,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#define __STDC_FORMAT_MACROS
+
 #include "string.h"
 #include "debug.h"
 #include <stdio.h>
@@ -28,6 +30,9 @@
 #include <limits>
 #include <errno.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <stdarg.h>
 
 namespace kj {
 
@@ -54,7 +59,7 @@ CappedArray<char, sizeof(type) * 4> hex(type i) { \
 HEXIFY_INT(unsigned short, "%x");
 HEXIFY_INT(unsigned int, "%x");
 HEXIFY_INT(unsigned long, "%lx");
-HEXIFY_INT(unsigned long long, "%llx");
+HEXIFY_INT(unsigned long long, "%" PRIx64);
 
 #undef HEXIFY_INT
 
@@ -77,8 +82,8 @@ STRINGIFY_INT(int, "%d");
 STRINGIFY_INT(unsigned int, "%u");
 STRINGIFY_INT(long, "%ld");
 STRINGIFY_INT(unsigned long, "%lu");
-STRINGIFY_INT(long long, "%lld");
-STRINGIFY_INT(unsigned long long, "%llu");
+STRINGIFY_INT(long long, "%" PRId64);
+STRINGIFY_INT(unsigned long long, "%" PRIu64);
 STRINGIFY_INT(const void*, "%p");
 
 #undef STRINGIFY_INT
@@ -149,9 +154,40 @@ namespace {
 //   snprintf(buffer, 32, "%.*g\n", FLT_DIG, 1.23e10f);
 // it prints "1.23000e+10".  This is plainly wrong:  %g should never print
 // trailing zeros after the decimal point.  For some reason this bug only
-// occurs with some input values, not all.  In any case, _snprintf does the
-// right thing, so we use it.
-#define snprintf _snprintf
+// occurs with some input values, not all.
+//
+// _snprintf is closer but it always writes three digit exponents. So we are
+// going to wrap it, let it do the hard work and then fix it up afterwards.
+#define snprintf snprintf_wrapper
+static int snprintf_wrapper(char* buf, int bufsz, const char* fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  int ret = _vsnprintf(buf, bufsz, fmt, ap);
+  if (ret < 0 || ret >= bufsz)
+    return ret;
+
+  char* p = strchr(buf, 'e');
+  if (!p)
+    return ret;
+  p++;
+  if (*p == '+' || *p == '-')
+    p++;
+
+  if (p[0] == '0' && p[1] == '0')
+  {
+    memmove(p, p+2, buf+ret+1-(p+2));
+    return ret-2;
+  }
+  else if (p[0] == '0')
+  {
+    memmove(p, p+1, buf+ret+1-(p+1));
+    return ret-1;
+  }
+  else
+  {
+    return ret;
+  }
+}
 #endif
 
 inline bool IsNaN(double value) {
