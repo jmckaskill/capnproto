@@ -441,9 +441,21 @@ public:
       si.hStdOutput = outdup;
       si.hStdError = errdup;
 
-      const char* dir = (output.dir == nullptr ? NULL : output.dir.cStr());
+      char *dir = NULL, dirbuf[MAX_PATH];
+      if (output.dir != nullptr) {
+        KJ_WINCALL(GetFullPathNameA(output.dir.cStr(), sizeof(dirbuf), dirbuf, NULL) != 0);
+        dirbuf[sizeof(dirbuf)-1] = 0;
+        dir = dirbuf;
+      }
 
-      if (!CreateProcessA(exeName.cStr(), NULL, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, dir, &si, &pi)) {
+      char exebuf[MAX_PATH], *exe = (char*)exeName.cStr();
+      if (!shouldSearchPath) {
+        KJ_WINCALL(GetFullPathNameA(exe, sizeof(exebuf), exebuf, NULL) != 0);
+        exebuf[sizeof(exebuf)-1] = 0;
+        exe = exebuf;
+      }
+
+      if (!CreateProcessA(exe, NULL, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, dir, &si, &pi)) {
         DWORD err = GetLastError();
 	if (err == ERROR_FILE_NOT_FOUND) {
           context.exitError(kj::str(output.name, ": no such plugin (executable should be '", exeName, "')"));
