@@ -69,7 +69,8 @@ static void writeLineToFd(FILE *f, StringPtr message) {
   }
 
   fwrite(message.begin(), message.size(), 1, f);
-  fwrite("\n", 1, 1, f);
+  if (!message.endsWith("\n"))
+    fwrite("\n", 1, 1, f);
   fflush(f);
 }
 
