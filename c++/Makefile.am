@@ -156,7 +156,7 @@ includecapnp_HEADERS =                                         \
 lib_LTLIBRARIES = libkj.la libcapnp.la libcapnpc.la
 
 # -lpthread is here to work around https://bugzilla.redhat.com/show_bug.cgi?id=661333
-libkj_la_LIBADD = $(PTHREAD_LIBS) -lpthread -lws2_32
+libkj_la_LIBADD = $(PTHREAD_LIBS) -lpthread
 libkj_la_LDFLAGS = -release $(VERSION) -no-undefined
 libkj_la_SOURCES=                                              \
   src/kj/common.c++                                            \

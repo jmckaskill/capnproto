@@ -53,6 +53,8 @@ AC_SEARCH_LIBS(sched_yield, rt)
 LIBS="$PTHREAD_LIBS $LIBS"
 CXXFLAGS="$CXXFLAGS $PTHREAD_CFLAGS"
 
+AS_IF([test `uname -o` = "Msys"], [LIBS="$LIBS -lws2_32"])
+
 # AX_CXX_COMPILE_STDCXX_11 may have modified CXX, and we need gtest to use these modifications as
 # well (especially -stdlib).  Note that this may cause ac_configure_args to contain CXX= twice, but
 # the latter one should override the former.
