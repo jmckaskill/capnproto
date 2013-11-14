@@ -27,6 +27,10 @@
 #include <gtest/gtest.h>
 #include <stdint.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace kj {
 namespace {
 

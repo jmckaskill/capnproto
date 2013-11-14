@@ -27,6 +27,15 @@
 #include <kj/thread.h>
 #include <kj/debug.h>
 #include <gtest/gtest.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#undef INTERFACE
+#undef CONST
+#undef VOID
+
+#endif
+
 #include "test-util.h"
 
 namespace capnp {
