@@ -11,7 +11,7 @@ Index: include/gtest/gtest-printers.h
  // which are packed as tuples.
  
  // Helper function for printing a tuple.  T must be instantiated with
-@@ -494,60 +494,60 @@
+@@ -494,32 +494,32 @@
  // regardless of whether tr1::tuple is implemented using the
  // non-standard variadic template feature or not.
  
@@ -50,6 +50,7 @@ Index: include/gtest/gtest-printers.h
               ::std::ostream* os) {
    PrintTupleTo(t, os);
  }
+@@ -526,7 +526,7 @@
  
  template <typename T1, typename T2, typename T3, typename T4, typename T5,
            typename T6>
@@ -58,6 +59,7 @@ Index: include/gtest/gtest-printers.h
               ::std::ostream* os) {
    PrintTupleTo(t, os);
  }
+@@ -533,7 +533,7 @@
  
  template <typename T1, typename T2, typename T3, typename T4, typename T5,
            typename T6, typename T7>
@@ -66,6 +68,7 @@ Index: include/gtest/gtest-printers.h
               ::std::ostream* os) {
    PrintTupleTo(t, os);
  }
+@@ -540,7 +540,7 @@
  
  template <typename T1, typename T2, typename T3, typename T4, typename T5,
            typename T6, typename T7, typename T8>
@@ -74,6 +77,7 @@ Index: include/gtest/gtest-printers.h
               ::std::ostream* os) {
    PrintTupleTo(t, os);
  }
+@@ -547,7 +547,7 @@
  
  template <typename T1, typename T2, typename T3, typename T4, typename T5,
            typename T6, typename T7, typename T8, typename T9>
@@ -160,7 +164,19 @@ Index: include/gtest/internal/gtest-port.h
  
  #  ifdef __GXX_RTTI
  #   define GTEST_HAS_RTTI 1
-@@ -482,21 +482,21 @@
+@@ -437,6 +437,11 @@
+ # define GTEST_HAS_TR1_TUPLE 1
+ #endif  // GTEST_HAS_TR1_TUPLE
+ 
++// TR1 tuple seems to be broken on msys
++#if defined __GNUCC__ && defined _WIN32
++#undef GTEST_HAS_TR1_TUPLE
++#endif
++
+ // Determines whether Google Test's own tr1 tuple implementation
+ // should be used.
+ #ifndef GTEST_USE_OWN_TR1_TUPLE
+@@ -482,21 +487,21 @@
  #  include <tuple>
  
  # elif defined(__GNUC__) && (GTEST_GCC_VER_ >= 40000)
@@ -190,6 +206,73 @@ Index: include/gtest/internal/gtest-port.h
  #  endif  // !GTEST_HAS_RTTI && GTEST_GCC_VER_ < 40302
  
  # else
+@@ -1073,7 +1078,12 @@
+     0,                  // 0 seconds.
+     n * 1000L * 1000L,  // And n ms.
+   };
++#ifdef _WIN32
++  // msys pthread doesn't define nanosleep
++  ::Sleep(n);
++#else
+   nanosleep(&time, NULL);
++#endif
+ }
+ 
+ // Allows a controller thread to pause execution of newly created
+@@ -1206,6 +1216,7 @@
+   // Acquires this mutex.
+   void Lock() {
+     GTEST_CHECK_POSIX_SUCCESS_(pthread_mutex_lock(&mutex_));
++    have_owner_ = true;
+     owner_ = pthread_self();
+   }
+ 
+@@ -1214,7 +1225,7 @@
+     // We don't protect writing to owner_ here, as it's the caller's
+     // responsibility to ensure that the current thread holds the
+     // mutex when this is called.
+-    owner_ = 0;
++    have_owner_ = false;
+     GTEST_CHECK_POSIX_SUCCESS_(pthread_mutex_unlock(&mutex_));
+   }
+ 
+@@ -1221,7 +1232,7 @@
+   // Does nothing if the current thread holds the mutex. Otherwise, crashes
+   // with high probability.
+   void AssertHeld() const {
+-    GTEST_CHECK_(owner_ == pthread_self())
++    GTEST_CHECK_(have_owner_ && pthread_equal(owner_, pthread_self()))
+         << "The current thread is not holding the mutex @" << this;
+   }
+ 
+@@ -1232,7 +1243,8 @@
+   // have to be public.
+  public:
+   pthread_mutex_t mutex_;  // The underlying pthread mutex.
+-  pthread_t owner_;  // The thread holding the mutex; 0 means no one holds it.
++  bool have_owner_;
++  pthread_t owner_;  // The thread holding the mutex
+ };
+ 
+ // Forward-declares a static mutex.
+@@ -1241,7 +1253,7 @@
+ 
+ // Defines and statically (i.e. at link time) initializes a static mutex.
+ # define GTEST_DEFINE_STATIC_MUTEX_(mutex) \
+-    ::testing::internal::MutexBase mutex = { PTHREAD_MUTEX_INITIALIZER, 0 }
++    ::testing::internal::MutexBase mutex = { PTHREAD_MUTEX_INITIALIZER, false }
+ 
+ // The Mutex class can only be used for mutexes created at runtime. It
+ // shares its API with MutexBase otherwise.
+@@ -1249,7 +1261,7 @@
+  public:
+   Mutex() {
+     GTEST_CHECK_POSIX_SUCCESS_(pthread_mutex_init(&mutex_, NULL));
+-    owner_ = 0;
++    have_owner_ = false;
+   }
+   ~Mutex() {
+     GTEST_CHECK_POSIX_SUCCESS_(pthread_mutex_destroy(&mutex_));
 Index: include/gtest/internal/gtest-param-util-generated.h.pump
 ===================================================================
 --- include/gtest/internal/gtest-param-util-generated.h.pump	(revision 655)
